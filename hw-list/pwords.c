@@ -67,16 +67,17 @@ int main(int argc, char* argv[]) {
   } else {
 
     int num_threads = argc - 1;
-    struct pwords_args* arg_list[argc - 1];
-    pthread_t threads[argc - 1];
+    pthread_t threads[num_threads];
 
     for (int t = 0; t < num_threads; t++) {
 
-      arg_list[t] = malloc(sizeof(struct pwords_args));
-      arg_list[t]->file = argv[t + 1];
-      arg_list[t]->wclist = &word_counts; 
+      struct pwords_args* arg_list;
+    
+      arg_list = malloc(sizeof(struct pwords_args));
+      arg_list->file = argv[t + 1];
+      arg_list->wclist = &word_counts; 
       
-      pthread_create(&threads[t], NULL, pcount_words, (void*) arg_list[t]);
+      pthread_create(&threads[t], NULL, pcount_words, (void*) arg_list);
 
   }
 
