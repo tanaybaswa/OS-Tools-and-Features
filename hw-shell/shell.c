@@ -30,6 +30,9 @@ pid_t shell_pgid;
 
 int cmd_exit(struct tokens* tokens);
 int cmd_help(struct tokens* tokens);
+int cmd_pwd(struct tokens* token);
+int cmd_cd(struct tokens* token);
+int path_finder(char* f, char** args);
 
 /* Built-in command functions take token array (see parse.h) and return int */
 typedef int cmd_fun_t(struct tokens* tokens);
@@ -43,6 +46,8 @@ typedef struct fun_desc {
 
 fun_desc_t cmd_table[] = {
     {cmd_help, "?", "show this help menu"},
+    {cmd_pwd, "pwd", "present working directory"},
+    {cmd_cd, "cd", "change to directory"},
     {cmd_exit, "exit", "exit the command shell"},
 };
 
@@ -51,6 +56,65 @@ int cmd_help(unused struct tokens* tokens) {
   for (unsigned int i = 0; i < sizeof(cmd_table) / sizeof(fun_desc_t); i++)
     printf("%s - %s\n", cmd_table[i].cmd, cmd_table[i].doc);
   return 1;
+}
+
+/* Present working directory. */
+int cmd_pwd(struct tokens* tokens) {
+
+  int size = 50;
+
+  char* buffer = (char *) malloc(sizeof(char) * size);
+  while (getcwd(buffer, size) == NULL){
+    size *= 2;
+  }
+  
+  printf("%s\n",buffer);
+  free(buffer);
+
+  return 0;
+}
+
+int path_finder(char* f, char** args){
+
+  char* pathvar = getenv("PATH");
+  char* p = strtok(pathvar, ":");
+  char* copy;
+  int x = -1;
+  FILE* file;
+    
+   
+
+  while(p && x == -1){
+    copy = malloc(strlen(p) + 1);
+    strcpy(copy, p);
+    strcat(copy, "/");
+    strcat(copy, f);
+
+    if ((file = fopen(copy, "r"))){
+      fclose(file);
+      x = 0;
+      execv(copy, args);
+    }
+    
+    free(copy);
+    p = strtok(0, ":");
+  }
+
+  return x;
+
+}
+
+/* Changes to directory. */
+
+int cmd_cd(struct tokens *token) {
+  char *new_dir = tokens_get_token(token, 1);
+
+  if (chdir(new_dir)){
+    printf("Error: Could not change to specified directory.\n");
+    return 1;
+  } else {
+    return 0;
+  }
 }
 
 /* Exits this shell */
@@ -95,6 +159,7 @@ int main(unused int argc, unused char* argv[]) {
 
   static char line[4096];
   int line_num = 0;
+  char* f;
 
   /* Please only print shell prompts when standard input is not a tty */
   if (shell_is_interactive)
@@ -105,13 +170,40 @@ int main(unused int argc, unused char* argv[]) {
     struct tokens* tokens = tokenize(line);
 
     /* Find which built-in function to run. */
-    int fundex = lookup(tokens_get_token(tokens, 0));
+    f = tokens_get_token(tokens, 0);
+    int fundex = lookup(f);
 
     if (fundex >= 0) {
       cmd_table[fundex].fun(tokens);
     } else {
-      /* REPLACE this to run commands as programs. */
-      fprintf(stdout, "This shell doesn't know how to run programs.\n");
+      int status;
+      size_t len = tokens_get_length(tokens);
+      pid_t cpid = fork();
+      
+      if (cpid == 0) {
+
+        char **args = (char **) malloc(len);
+
+        for (int i = 0; i < len; i++) {
+          char* s = tokens_get_token(tokens, i);
+          args[i] = (char *) malloc(strlen(s) + 1);
+          strcpy(args[i], s);
+        }
+
+        int x = execv(f, args);
+        if (x < 0){
+          x = path_finder(f, args);
+          if (x < 0){
+            printf("%s\n", "No such file path found. Error occurred.");
+            exit(1);
+          }
+        }
+
+
+      } else {
+        wait(&status);  
+      }
+      
     }
 
     if (shell_is_interactive)
