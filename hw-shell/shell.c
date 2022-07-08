@@ -287,11 +287,14 @@ int main(unused int argc, unused char* argv[]) {
         f = path_resolve(f);
     
         if (f){
-          execv(f, args);
+          int x = execv(f, args);
+          if (x){
+            perror("execv error, check args");
+          }
           return 0;
         
         } else {
-          perror("No such file or directory.");
+          perror("No such file or directory for args[0]");
           return 1;
         }
 
