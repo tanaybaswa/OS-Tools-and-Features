@@ -274,7 +274,8 @@ int main(unused int argc, unused char* argv[]) {
       
       if (cpid == 0) {
 
-        len = redirect(tokens);
+        //len = redirect(tokens);
+        len = tokens_get_length(tokens);
         
         char **args = (char **) malloc(len);
 
@@ -291,7 +292,6 @@ int main(unused int argc, unused char* argv[]) {
           if (x){
             perror("execv error, check args");
           }
-          return 0;
         
         } else {
           perror("No such file or directory for args[0]");
