@@ -192,6 +192,7 @@ int redirect(struct tokens *tokens) {
 
   int len = tokens_get_length(tokens);
   int file;
+  int file2;
   int j;
   char* source;
 
@@ -203,7 +204,6 @@ int redirect(struct tokens *tokens) {
       source = tokens_get_token(tokens, i + 1);
       file = open(source, O_RDONLY);
       dup2(file, 0);
-      close(file);
 
       j = i;
 
@@ -214,7 +214,6 @@ int redirect(struct tokens *tokens) {
     
       len -= 2;
       i--;
-      //tokens_set_length(tokens, len);
 
 
     }
@@ -222,10 +221,9 @@ int redirect(struct tokens *tokens) {
     if (*c == '>'){
       
       char* source = tokens_get_token(tokens, i + 1);
-      file = open(source, O_WRONLY|O_CREAT|O_APPEND);
-      //int fd = open(source, O_WRONLY, 0666);
-      dup2(file, 1);
-      close(file);
+      file2 = open(source, O_CREAT|O_TRUNC|O_WRONLY, 0644);
+      
+      dup2(file2, 1);
       
       j = i;
 
@@ -233,11 +231,9 @@ int redirect(struct tokens *tokens) {
         tokens_set_token(tokens, j, j+2,'\0');
         j += 1;
       }
-      //tokens_set_token(tokens, j, -1,'\0');
-      //tokens_set_token(tokens, j + 1, -1,'\0');
+
       len -= 2;
       i--;
-      //tokens_set_length(tokens, len);
       
     }
   }
@@ -277,7 +273,7 @@ int main(unused int argc, unused char* argv[]) {
       if (cpid == 0) {
 
         len = redirect(tokens);
-
+        
         char **args = (char **) malloc(len);
 
         for (int i = 0; i < len; i++) {
@@ -290,10 +286,11 @@ int main(unused int argc, unused char* argv[]) {
     
         if (f){
           execv(f, args);
-          exit(0);
+          return 0;
+        
         } else {
           perror("No such file or directory.");
-          exit(1);
+          return 1;
         }
 
 
