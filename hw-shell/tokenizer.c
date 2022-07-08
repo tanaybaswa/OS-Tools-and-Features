@@ -104,11 +104,24 @@ size_t tokens_get_length(struct tokens* tokens) {
   }
 }
 
+void tokens_set_length(struct tokens* tokens, int len){
+  tokens->tokens_length = len;
+}
+
 char* tokens_get_token(struct tokens* tokens, size_t n) {
   if (tokens == NULL || n >= tokens->tokens_length) {
     return NULL;
   } else {
     return tokens->tokens[n];
+  }
+}
+
+void tokens_set_token(struct tokens* tokens, int dest, int src, char c) {
+  if(src == -1){
+    tokens->tokens[dest] = &c;
+
+  } else {
+    tokens->tokens[dest] = tokens->tokens[src];
   }
 }
 

@@ -10,6 +10,7 @@
 #include <sys/wait.h>
 #include <termios.h>
 #include <unistd.h>
+#include <sys/stat.h>
 
 #include "tokenizer.h"
 
@@ -33,6 +34,8 @@ int cmd_help(struct tokens* tokens);
 int cmd_pwd(struct tokens* token);
 int cmd_cd(struct tokens* token);
 int path_finder(char* f, char** args);
+int redirect(struct tokens* tokens);
+char* path_resolve(char* f);
 
 /* Built-in command functions take token array (see parse.h) and return int */
 typedef int cmd_fun_t(struct tokens* tokens);
@@ -104,6 +107,35 @@ int path_finder(char* f, char** args){
 
 }
 
+char* path_resolve(char* f){
+
+  char* pathvar = getenv("PATH");
+  char* p = strtok(pathvar, ":");
+  char* copy = f;
+
+  struct stat buffer;
+  if(!stat(f, &buffer)){
+    return copy;
+  }
+  
+  while(p){
+    copy = malloc(strlen(p) + 1);
+    strcpy(copy, p);
+    strcat(copy, "/");
+    strcat(copy, f);
+
+    if (!stat(copy, &buffer)){
+      break;
+    }
+    
+    free(copy);
+    copy = NULL;
+    p = strtok(0, ":");
+  }
+
+  return copy;
+}
+
 /* Changes to directory. */
 
 int cmd_cd(struct tokens *token) {
@@ -154,6 +186,67 @@ void init_shell() {
   }
 }
 
+/* Redirection. */
+
+int redirect(struct tokens *tokens) {
+
+  int len = tokens_get_length(tokens);
+  int file;
+  int j;
+  char* source;
+
+  for (int i = 0; i < len; i++){
+    char* c = tokens_get_token(tokens, i);
+
+    if(*c == '<'){
+      
+      source = tokens_get_token(tokens, i + 1);
+      file = open(source, O_RDONLY);
+      dup2(file, 0);
+      close(file);
+
+      j = i;
+
+      while(j + 2 < len){
+        tokens_set_token(tokens, j, j+2,'\0');
+        j += 1;
+      }
+    
+      len -= 2;
+      i--;
+      //tokens_set_length(tokens, len);
+
+
+    }
+
+    if (*c == '>'){
+      
+      char* source = tokens_get_token(tokens, i + 1);
+      file = open(source, O_WRONLY|O_CREAT|O_APPEND);
+      //int fd = open(source, O_WRONLY, 0666);
+      dup2(file, 1);
+      close(file);
+      
+      j = i;
+
+      while(j + 2 < len){
+        tokens_set_token(tokens, j, j+2,'\0');
+        j += 1;
+      }
+      //tokens_set_token(tokens, j, -1,'\0');
+      //tokens_set_token(tokens, j + 1, -1,'\0');
+      len -= 2;
+      i--;
+      //tokens_set_length(tokens, len);
+      
+    }
+  }
+
+  return len;
+}
+
+
+
 int main(unused int argc, unused char* argv[]) {
   init_shell();
 
@@ -173,14 +266,17 @@ int main(unused int argc, unused char* argv[]) {
     f = tokens_get_token(tokens, 0);
     int fundex = lookup(f);
 
+
     if (fundex >= 0) {
       cmd_table[fundex].fun(tokens);
     } else {
       int status;
-      size_t len = tokens_get_length(tokens);
+      size_t len;
       pid_t cpid = fork();
       
       if (cpid == 0) {
+
+        len = redirect(tokens);
 
         char **args = (char **) malloc(len);
 
@@ -190,18 +286,19 @@ int main(unused int argc, unused char* argv[]) {
           strcpy(args[i], s);
         }
 
-        int x = execv(f, args);
-        if (x < 0){
-          x = path_finder(f, args);
-          if (x < 0){
-            printf("%s\n", "No such file path found. Error occurred.");
-            exit(1);
-          }
+        f = path_resolve(f);
+    
+        if (f){
+          execv(f, args);
+          exit(0);
+        } else {
+          perror("No such file or directory.");
+          exit(1);
         }
 
 
       } else {
-        wait(&status);  
+        wait(&status);
       }
       
     }
