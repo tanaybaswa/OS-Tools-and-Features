@@ -199,6 +199,25 @@ int redirect(struct tokens *tokens) {
   for (int i = 0; i < len; i++){
     char* c = tokens_get_token(tokens, i);
 
+    if (*c == '>'){
+
+      char* source = tokens_get_token(tokens, i + 1);
+      file2 = open(source, O_CREAT|O_TRUNC|O_WRONLY, 0666);
+      
+      dup2(file2, 1);
+
+      j = i;
+
+      while(j + 2 < len){
+        tokens_set_token(tokens, j, j+2,'\0');
+        j += 1;
+      }
+
+      len -= 2;
+      i--;
+      
+    }
+
     if(*c == '<'){
       
       source = tokens_get_token(tokens, i + 1);
@@ -218,24 +237,7 @@ int redirect(struct tokens *tokens) {
 
     }
 
-    if (*c == '>'){
-      
-      char* source = tokens_get_token(tokens, i + 1);
-      file2 = open(source, O_CREAT|O_TRUNC|O_WRONLY, 0644);
-      
-      dup2(file2, 1);
-      
-      j = i;
-
-      while(j + 2 < len){
-        tokens_set_token(tokens, j, j+2,'\0');
-        j += 1;
-      }
-
-      len -= 2;
-      i--;
-      
-    }
+    
   }
 
   return len;
