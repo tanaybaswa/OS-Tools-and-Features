@@ -385,7 +385,7 @@ void pipe_executer2(struct tokens *tokens, int num_tasks){
         if (output_index){
 
           task[output_index] = NULL;
-          int outfile = open(task[output_index + 1], O_CREAT|O_TRUNC|O_WRONLY, 0644);
+          int outfile = open(task[output_index + 1], O_WRONLY | O_TRUNC | O_CREAT, S_IRUSR | S_IRGRP | S_IWGRP | S_IWUSR);
           dup2(outfile, 1);
         }
 
