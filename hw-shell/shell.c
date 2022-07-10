@@ -339,9 +339,6 @@ void pipe_executer2(struct tokens *tokens, int num_tasks){
 
   for (task_number = 0; task_number < num_tasks; task_number++){
 
-    printf("%d\n", task_number);
-
-
     char* task[256];
     int k = 0;
 
