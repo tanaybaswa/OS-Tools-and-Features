@@ -19,6 +19,7 @@
 
 /* Whether the shell is connected to an actual terminal or not. */
 bool shell_is_interactive;
+int path_change = 0;
 
 /* File descriptor for the shell input */
 int shell_terminal;
@@ -33,7 +34,6 @@ int cmd_exit(struct tokens* tokens);
 int cmd_help(struct tokens* tokens);
 int cmd_pwd(struct tokens* token);
 int cmd_cd(struct tokens* token);
-int path_finder(char* f, char** args);
 int redirect(struct tokens* tokens);
 char* path_resolve(char* f);
 
@@ -77,57 +77,30 @@ int cmd_pwd(struct tokens* tokens) {
   return 0;
 }
 
-int path_finder(char* f, char** args){
-
-  char* pathvar = getenv("PATH");
-  char* p = strtok(pathvar, ":");
-  char* copy;
-  int x = -1;
-  FILE* file;
-    
-   
-
-  while(p && x == -1){
-    copy = malloc(strlen(p) + 1);
-    strcpy(copy, p);
-    strcat(copy, "/");
-    strcat(copy, f);
-
-    if ((file = fopen(copy, "r"))){
-      fclose(file);
-      x = 0;
-      execv(copy, args);
-    }
-    
-    free(copy);
-    p = strtok(0, ":");
-  }
-
-  return x;
-
-}
-
 char* path_resolve(char* f){
 
   char* pathvar = getenv("PATH");
   char* p = strtok(pathvar, ":");
-  char* copy = f;
+  char* copy = malloc(strlen(f) + 1);
+  strcpy(copy, f);
 
   struct stat buffer;
-  if(!stat(f, &buffer)){
+  if(!stat(copy, &buffer)){
     return copy;
   }
+
   
   while(p){
-    copy = malloc(strlen(p) + 1);
+    copy = malloc(strlen(p) + strlen(f) + 2);
     strcpy(copy, p);
     strcat(copy, "/");
     strcat(copy, f);
 
     if (!stat(copy, &buffer)){
+      path_change = 1;
       break;
     }
-    
+
     free(copy);
     copy = NULL;
     p = strtok(0, ":");
@@ -244,6 +217,67 @@ int redirect(struct tokens *tokens) {
 }
 
 
+void pipe_executer(struct tokens *tokens, int num_tasks){
+
+  int fd[2];
+
+  int len = tokens_get_length(tokens);
+  int i = 0;
+  char* t[256];
+  int task_number = 0;
+  pid_t pid;
+  int status;
+        
+  for (int x = 0; x < len; x++) {
+    char* s = tokens_get_token(tokens, x);
+    t[x] = s;
+  }
+
+  t[len] = NULL;
+
+  while (i < len){
+
+
+    char* task[64];
+    int k = 0;
+
+
+    while(i < len && strcmp(t[i],"|") != 0){
+
+      task[k] = t[i];
+      k++;
+      i++;
+    }
+
+    task[k] = NULL;
+    i++;
+
+    pipe(fd);
+
+    pid = fork();
+
+    if (pid == 0){
+      
+
+      if (task_number == 0){
+        dup2(fd[1], STDOUT_FILENO);
+      } else{
+        dup2(fd[0], STDIN_FILENO);
+      }
+      
+      task[0] = path_resolve(task[0]);
+      execv(task[0], task);
+
+    } else {
+
+      wait(&status);
+      task_number += 1;
+    }
+
+  }
+
+}
+
 
 int main(unused int argc, unused char* argv[]) {
   init_shell();
@@ -269,27 +303,49 @@ int main(unused int argc, unused char* argv[]) {
       cmd_table[fundex].fun(tokens);
     } else {
       int status;
-      size_t len;
       pid_t cpid = fork();
+      int len;
+      int num_tasks = 1;
       
       if (cpid == 0) {
 
-        //len = redirect(tokens);
-        len = tokens_get_length(tokens);
+        len = redirect(tokens);
+
+        char *t[256];
+        /**
         
-        char **args = (char **) malloc(len);
+        char **args = (char **) malloc(len + 1);
 
         for (int i = 0; i < len; i++) {
           char* s = tokens_get_token(tokens, i);
           args[i] = (char *) malloc(strlen(s) + 1);
           strcpy(args[i], s);
+          t[i] = s;
         }
 
-        f = path_resolve(f);
-    
+        args[len] = NULL;
+        **/
+
+      for (int i = 0; i < len; i++) {
+        char* s = tokens_get_token(tokens, i);
+        if(strcmp(s, "|") == 0) {
+          num_tasks += 1;
+        }
+        t[i] = s;
+        }
+
+      t[len] = NULL;
+
+      if (num_tasks > 1){
+        
+        pipe_executer(tokens, num_tasks);
+
+      } else {
+
+        f = path_resolve(t[0]);
+  
         if (f){
-          int x = execv(f, args);
-          if (x){
+          if (execv(f, t)){
             perror("execv error, check args");
           }
         
@@ -299,6 +355,9 @@ int main(unused int argc, unused char* argv[]) {
         }
 
 
+
+      }
+      
       } else {
         wait(&status);
       }
@@ -311,6 +370,10 @@ int main(unused int argc, unused char* argv[]) {
 
     /* Clean up memory */
     tokens_destroy(tokens);
+    
+    if (path_change){
+      free(f);
+    }
   }
 
   return 0;
