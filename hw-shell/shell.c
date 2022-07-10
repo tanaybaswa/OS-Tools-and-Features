@@ -221,6 +221,8 @@ void pipe_executer(struct tokens *tokens, int num_tasks){
 
   int fd[2];
   int fd2[2];
+  pipe(fd);
+  pipe(fd2);
 
   int len = tokens_get_length(tokens);
   int i = 0;
@@ -238,6 +240,8 @@ void pipe_executer(struct tokens *tokens, int num_tasks){
 
   while (i < len){
 
+    printf("%d\n", task_number);
+
 
     char* task[256];
     int k = 0;
@@ -252,12 +256,6 @@ void pipe_executer(struct tokens *tokens, int num_tasks){
 
     task[k] = NULL;
     i++;
-
-    if (task_number % 2 == 0){
-      pipe(fd2);
-    } else {
-      pipe(fd);
-    }
 
     pid = fork();
 
@@ -286,30 +284,119 @@ void pipe_executer(struct tokens *tokens, int num_tasks){
       task[0] = path_resolve(task[0]);
       execv(task[0], task);
 
+    } else {
+      
+      if (task_number == 0){
+        close(fd2[1]);
+      } else if (task_number == num_tasks - 1){
+        if (task_number % 2 == 0){					
+          close(fd[0]);
+        }else{					
+          close(fd2[0]);
+        }
+      } else{
+        if (task_number % 2 == 0){					
+          close(fd2[0]);
+          close(fd[1]);
+        }else{					
+          close(fd[0]);
+          close(fd2[1]);
+        }
+		  }
+      
+
+    waitpid(pid, &status, 0);
+    		
+		task_number++;
+
+    }
+  }
+
+}
+
+void pipe_executer2(struct tokens *tokens, int num_tasks){
+
+  int c;
+
+  int fd[num_tasks - 1][2];
+  for (c = 0; c < num_tasks - 1; c++){
+    pipe(fd[c]);
+  }
+
+  int len = tokens_get_length(tokens);
+  int i = 0;
+  char* t[1024];
+  int task_number = 0;
+  pid_t pid;
+  int status;
+        
+  for (int x = 0; x < len; x++) {
+    char* s = tokens_get_token(tokens, x);
+    t[x] = s;
+  }
+
+  t[len] = NULL;
+
+  for (task_number = 0; task_number < num_tasks; task_number++){
+
+    printf("%d\n", task_number);
+
+
+    char* task[256];
+    int k = 0;
+
+
+    while(i < len && strcmp(t[i],"|") != 0){
+
+      task[k] = t[i];
+      k++;
+      i++;
     }
 
-    if (task_number == 0){
-			close(fd2[1]);
-		}
-		else if (task_number == num_tasks - 1){
-			if (task_number % 2 == 0){					
-				close(fd[0]);
-			}else{					
-				close(fd2[0]);
-			}
-		}else{
-			if (task_number % 2 == 0){					
-				close(fd2[0]);
-				close(fd[1]);
-			}else{					
-				close(fd[0]);
-				close(fd2[1]);
-			}
-		}
-				
-		wait(&status);
-				
-		task_number++;	
+    task[k] = NULL;
+    i++;
+
+    pid = fork();
+
+    if (pid == 0){
+
+      if (task_number == 0){
+        dup2(fd[task_number][1], 1);
+        
+      } else if (task_number == num_tasks - 1){
+        dup2(fd[task_number - 1][0], 0);
+
+      } else {
+        dup2(fd[task_number - 1][0], 0);
+        dup2(fd[task_number][1], 1);
+      }
+
+      /**
+
+      for (c = 0; c < num_tasks - 1; c++){
+        close(fd[c][0]);
+        close(fd[c][1]);
+      }
+      **/
+  
+      task[0] = path_resolve(task[0]);
+      execv(task[0], task);
+
+    } else {
+
+      if (task_number == 0){
+        close(fd[task_number][1]);
+        
+      } else if (task_number == num_tasks - 1){
+        close(fd[task_number - 1][0]);
+
+      } else {
+        close(fd[task_number - 1][0]);
+        close(fd[task_number][1]);
+      }
+
+      wait(&status);
+    }
   }
 
 }
@@ -362,7 +449,7 @@ int main(unused int argc, unused char* argv[]) {
         t[len] = NULL;
 
         if (num_tasks > 1){
-          pipe_executer(tokens, num_tasks);
+          pipe_executer2(tokens, num_tasks);
           exit(0);
         }
         
