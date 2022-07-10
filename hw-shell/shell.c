@@ -317,6 +317,8 @@ void pipe_executer(struct tokens *tokens, int num_tasks){
 void pipe_executer2(struct tokens *tokens, int num_tasks){
 
   int c;
+  int input_index = 0;
+  int output_index = 0;
 
   int fd[num_tasks - 1][2];
   for (c = 0; c < num_tasks - 1; c++){
@@ -345,6 +347,16 @@ void pipe_executer2(struct tokens *tokens, int num_tasks){
 
     while(i < len && strcmp(t[i],"|") != 0){
 
+      if(strcmp(t[i],"<") == 0){
+        input_index = k;
+
+      }
+
+      if(strcmp(t[i],">") == 0){
+        output_index = k;
+
+      }
+
       task[k] = t[i];
       k++;
       i++;
@@ -359,9 +371,21 @@ void pipe_executer2(struct tokens *tokens, int num_tasks){
 
       if (task_number == 0){
         dup2(fd[task_number][1], 1);
+
+        if (input_index){
+          task[input_index] = NULL;
+          int infile = open(task[input_index + 1], O_RDONLY);
+          dup2(infile, 0);
+        }
         
       } else if (task_number == num_tasks - 1){
         dup2(fd[task_number - 1][0], 0);
+
+        if (output_index){
+          task[output_index] = NULL;
+          int outfile = open(task[output_index + 1], O_CREAT|O_TRUNC|O_WRONLY, 0666);
+          dup2(outfile, 1);
+        }
 
       } else {
         dup2(fd[task_number - 1][0], 0);
