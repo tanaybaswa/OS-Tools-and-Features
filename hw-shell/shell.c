@@ -220,10 +220,11 @@ int redirect(struct tokens *tokens) {
 void pipe_executer(struct tokens *tokens, int num_tasks){
 
   int fd[2];
+  int fd2[2];
 
   int len = tokens_get_length(tokens);
   int i = 0;
-  char* t[256];
+  char* t[1024];
   int task_number = 0;
   pid_t pid;
   int status;
@@ -238,7 +239,7 @@ void pipe_executer(struct tokens *tokens, int num_tasks){
   while (i < len){
 
 
-    char* task[64];
+    char* task[256];
     int k = 0;
 
 
@@ -252,28 +253,63 @@ void pipe_executer(struct tokens *tokens, int num_tasks){
     task[k] = NULL;
     i++;
 
-    pipe(fd);
+    if (task_number % 2 == 0){
+      pipe(fd2);
+    } else {
+      pipe(fd);
+    }
 
     pid = fork();
 
     if (pid == 0){
-      
 
       if (task_number == 0){
-        dup2(fd[1], STDOUT_FILENO);
-      } else{
-        dup2(fd[0], STDIN_FILENO);
+        dup2(fd2[1], 1);
+        
+      } else if (task_number == num_tasks - 1){
+        if (task_number % 2 == 0){
+          dup2(fd[0], 0);
+        } else {
+          dup2(fd2[0], 0);
+        }
+      } else {
+        if (task_number % 2 == 0){
+          dup2(fd[0], 0);
+          dup2(fd2[1], 1);
+        } else {
+          dup2(fd2[0], 0);
+          dup2(fd[1], 1);
+        }
+
       }
-      
+  
       task[0] = path_resolve(task[0]);
       execv(task[0], task);
 
-    } else {
-
-      wait(&status);
-      task_number += 1;
     }
 
+    if (task_number == 0){
+			close(fd2[1]);
+		}
+		else if (task_number == num_tasks - 1){
+			if (task_number % 2 == 0){					
+				close(fd[0]);
+			}else{					
+				close(fd2[0]);
+			}
+		}else{
+			if (task_number % 2 == 0){					
+				close(fd2[0]);
+				close(fd[1]);
+			}else{					
+				close(fd[0]);
+				close(fd2[1]);
+			}
+		}
+				
+		wait(&status);
+				
+		task_number++;	
   }
 
 }
@@ -303,47 +339,35 @@ int main(unused int argc, unused char* argv[]) {
       cmd_table[fundex].fun(tokens);
     } else {
       int status;
-      pid_t cpid = fork();
+      
       int len;
       int num_tasks = 1;
+
+      pid_t cpid = fork();
       
       if (cpid == 0) {
 
         len = redirect(tokens);
 
         char *t[256];
-        /**
-        
-        char **args = (char **) malloc(len + 1);
 
         for (int i = 0; i < len; i++) {
           char* s = tokens_get_token(tokens, i);
-          args[i] = (char *) malloc(strlen(s) + 1);
-          strcpy(args[i], s);
+          if(strcmp(s, "|") == 0) {
+            num_tasks += 1;
+          }
           t[i] = s;
         }
 
-        args[len] = NULL;
-        **/
+        t[len] = NULL;
 
-      for (int i = 0; i < len; i++) {
-        char* s = tokens_get_token(tokens, i);
-        if(strcmp(s, "|") == 0) {
-          num_tasks += 1;
+        if (num_tasks > 1){
+          pipe_executer(tokens, num_tasks);
+          exit(0);
         }
-        t[i] = s;
-        }
-
-      t[len] = NULL;
-
-      if (num_tasks > 1){
         
-        pipe_executer(tokens, num_tasks);
-
-      } else {
-
         f = path_resolve(t[0]);
-  
+
         if (f){
           if (execv(f, t)){
             perror("execv error, check args");
@@ -351,13 +375,11 @@ int main(unused int argc, unused char* argv[]) {
         
         } else {
           perror("No such file or directory for args[0]");
-          return 1;
+          exit(1);
         }
 
 
 
-      }
-      
       } else {
         wait(&status);
       }
@@ -370,10 +392,6 @@ int main(unused int argc, unused char* argv[]) {
 
     /* Clean up memory */
     tokens_destroy(tokens);
-    
-    if (path_change){
-      free(f);
-    }
   }
 
   return 0;
