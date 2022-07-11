@@ -36,6 +36,8 @@ int cmd_pwd(struct tokens* token);
 int cmd_cd(struct tokens* token);
 int redirect(struct tokens* tokens);
 char* path_resolve(char* f);
+void pipe_executer2(struct tokens *tokens, int num_tasks);
+
 
 /* Built-in command functions take token array (see parse.h) and return int */
 typedef int cmd_fun_t(struct tokens* tokens);
@@ -175,7 +177,7 @@ int redirect(struct tokens *tokens) {
     if (*c == '>'){
 
       char* source = tokens_get_token(tokens, i + 1);
-      file2 = open(source, O_CREAT|O_TRUNC|O_WRONLY, 0666);
+      file2 = open(source, O_CREAT|O_TRUNC|O_WRONLY, 0644);
       
       dup2(file2, 1);
 
@@ -214,104 +216,6 @@ int redirect(struct tokens *tokens) {
   }
 
   return len;
-}
-
-
-void pipe_executer(struct tokens *tokens, int num_tasks){
-
-  int fd[2];
-  int fd2[2];
-  pipe(fd);
-  pipe(fd2);
-
-  int len = tokens_get_length(tokens);
-  int i = 0;
-  char* t[1024];
-  int task_number = 0;
-  pid_t pid;
-  int status;
-        
-  for (int x = 0; x < len; x++) {
-    char* s = tokens_get_token(tokens, x);
-    t[x] = s;
-  }
-
-  t[len] = NULL;
-
-  while (i < len){
-
-    printf("%d\n", task_number);
-
-
-    char* task[256];
-    int k = 0;
-
-
-    while(i < len && strcmp(t[i],"|") != 0){
-
-      task[k] = t[i];
-      k++;
-      i++;
-    }
-
-    task[k] = NULL;
-    i++;
-
-    pid = fork();
-
-    if (pid == 0){
-
-      if (task_number == 0){
-        dup2(fd2[1], 1);
-        
-      } else if (task_number == num_tasks - 1){
-        if (task_number % 2 == 0){
-          dup2(fd[0], 0);
-        } else {
-          dup2(fd2[0], 0);
-        }
-      } else {
-        if (task_number % 2 == 0){
-          dup2(fd[0], 0);
-          dup2(fd2[1], 1);
-        } else {
-          dup2(fd2[0], 0);
-          dup2(fd[1], 1);
-        }
-
-      }
-  
-      task[0] = path_resolve(task[0]);
-      execv(task[0], task);
-
-    } else {
-      
-      if (task_number == 0){
-        close(fd2[1]);
-      } else if (task_number == num_tasks - 1){
-        if (task_number % 2 == 0){					
-          close(fd[0]);
-        }else{					
-          close(fd2[0]);
-        }
-      } else{
-        if (task_number % 2 == 0){					
-          close(fd2[0]);
-          close(fd[1]);
-        }else{					
-          close(fd[0]);
-          close(fd2[1]);
-        }
-		  }
-      
-
-    waitpid(pid, &status, 0);
-    		
-		task_number++;
-
-    }
-  }
-
 }
 
 void pipe_executer2(struct tokens *tokens, int num_tasks){
@@ -376,23 +280,27 @@ void pipe_executer2(struct tokens *tokens, int num_tasks){
           task[input_index] = NULL;
           int infile = open(task[input_index + 1], O_RDONLY);
           dup2(infile, 0);
-          input_index = 0;
+  
         }
         
-      } else if (task_number == num_tasks - 1){
-        dup2(fd[task_number - 1][0], 0);
+      }else if (task_number == (num_tasks - 1)){
+          dup2(fd[task_number - 1][0], 0);
 
-        if (output_index){
+          if (output_index){
 
-          task[output_index] = NULL;
-          int outfile = open(task[output_index + 1], O_WRONLY | O_TRUNC | O_CREAT, S_IRUSR | S_IRGRP | S_IWGRP | S_IWUSR);
-          dup2(outfile, 1);
-        }
+            task[output_index] = NULL;
+            int outfile = open(task[output_index + 1], O_CREAT|O_TRUNC|O_WRONLY, 0666);
+            dup2(outfile, 1);
+          }
+
+          
 
       } else {
         dup2(fd[task_number - 1][0], 0);
         dup2(fd[task_number][1], 1);
       }
+
+      
   
       task[0] = path_resolve(task[0]);
       execv(task[0], task);
@@ -410,12 +318,13 @@ void pipe_executer2(struct tokens *tokens, int num_tasks){
         close(fd[task_number][1]);
       }
 
-      wait(&status);
+      for (c = 0; c < num_tasks; c++){
+        wait(&status);
+      }
     }
   }
 
 }
-
 
 int main(unused int argc, unused char* argv[]) {
   init_shell();
@@ -442,12 +351,24 @@ int main(unused int argc, unused char* argv[]) {
     } else {
       int status;
       
-      int len;
+      int len = tokens_get_length(tokens);
       int num_tasks = 1;
+
+      for (int i = 0; i < len; i++) {
+        char* s = tokens_get_token(tokens, i);
+        if(strcmp(s, "|") == 0) {
+          num_tasks += 1;
+        }
+      }
 
       pid_t cpid = fork();
       
       if (cpid == 0) {
+
+        if (num_tasks > 1){
+          pipe_executer2(tokens, num_tasks);
+          exit(0);
+        }
 
         len = redirect(tokens);
 
@@ -455,18 +376,10 @@ int main(unused int argc, unused char* argv[]) {
 
         for (int i = 0; i < len; i++) {
           char* s = tokens_get_token(tokens, i);
-          if(strcmp(s, "|") == 0) {
-            num_tasks += 1;
-          }
           t[i] = s;
         }
 
         t[len] = NULL;
-
-        if (num_tasks > 1){
-          pipe_executer2(tokens, num_tasks);
-          exit(0);
-        }
         
         f = path_resolve(t[0]);
 
