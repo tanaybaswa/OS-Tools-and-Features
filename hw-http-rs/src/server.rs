@@ -7,6 +7,7 @@ use crate::stats::*;
 
 use clap::Parser;
 use tokio::net::TcpStream;
+use tokio::net::TcpListener;
 
 use anyhow::Result;
 
@@ -41,7 +42,16 @@ pub fn main() -> Result<()> {
 
 async fn listen(port: u16) -> Result<()> {
     // Hint: you should call `handle_socket` in this function.
-    todo!("TODO: Part 2")
+    let listener = TcpListener::bind(format!("0.0.0.0:{}", port)).await?;
+
+    loop {
+        let (socket, _) = listener.accept().await?;
+
+        tokio::spawn(async move {
+            // Process each socket concurrently.
+            handle_socket(socket).await
+        });
+    }
 }
 
 // Handles a single connection via `socket`.
