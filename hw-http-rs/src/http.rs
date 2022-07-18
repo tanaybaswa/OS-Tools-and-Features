@@ -27,7 +27,7 @@ where
 
     let mut start;
     let mut end = 0;
-
+    
     while {
         start = end;
         let len = s.read(&mut buf[start..]).await?;

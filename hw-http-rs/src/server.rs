@@ -56,7 +56,21 @@ async fn listen(port: u16) -> Result<()> {
 
 // Handles a single connection via `socket`.
 async fn handle_socket(mut socket: TcpStream) -> Result<()> {
-    todo!("TODO: Part 3")
+
+    //get filepath from socket, using function already given.
+    //append a '.'
+    //check if it exists, if it doesnt, 404
+    //get mime type.
+    //read file to buffer and write to socket in a loop
+    let mut buffer = [0; 1024];
+    let mut request = parse_request(&mut socket);
+
+    //let path = request.path;
+
+
+
+    
+    Ok(())   
 }
 
 // You are free (and encouraged) to add other funtions to this file.
