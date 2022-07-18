@@ -35,7 +35,7 @@ impl Stats {
 }
 
 pub async fn incr(s: &StatsPtr, sc: StatusCode) {
-    let x = s.write();
-    //let mut y = (**s).get_mut();
-    //Stats::incr(&mut y, sc);
+    let mut x = (*s).write().await;
+    x.incr(sc);
+    
 }
