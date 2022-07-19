@@ -8,6 +8,9 @@ use crate::stats::*;
 use clap::Parser;
 use tokio::net::TcpStream;
 use tokio::net::TcpListener;
+use tokio::fs::File;
+use tokio::io::{self, AsyncReadExt};
+use tokio::fs;
 
 use anyhow::Result;
 
@@ -63,12 +66,40 @@ async fn handle_socket(mut socket: TcpStream) -> Result<()> {
     //get mime type.
     //read file to buffer and write to socket in a loop
     let mut buffer = [0; 1024];
-    let mut request = parse_request(&mut socket);
 
-    //let path = request.path;
+    let _request = parse_request(&mut socket).await.unwrap();
+    let mut path = format!("{}{}", ".", _request.path);
 
 
+    let mut f = File::open(&mut path).await;
+    
+    let f = match f {
+        Ok(file) => file,
+        Err(e) => {
+            start_response(&mut socket, 404);
+            end_headers(&mut socket);
+            return Ok(())
+        }
+    };
 
+    let metadata = fs::metadata(&path).await.unwrap();
+    let len =  metadata.len();
+    let mut strlen = format!("{}", len);
+    
+
+    start_response(&mut socket, 200);
+    send_header(&mut socket, "Content-Type", get_mime_type(&path));
+    send_header(&mut socket, "Content-Length", &strlen);
+    end_headers(&mut socket);
+    /** 
+    loop:
+    read file into buffer.
+    write buffer into socket.
+    when done:
+    close file, Ok(())
+
+    */
+ 
     
     Ok(())   
 }
