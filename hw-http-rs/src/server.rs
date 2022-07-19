@@ -11,6 +11,8 @@ use tokio::net::TcpListener;
 use tokio::fs::File;
 use tokio::io::{self, AsyncReadExt};
 use tokio::fs;
+use tokio::io::AsyncWriteExt;
+
 
 use anyhow::Result;
 
@@ -73,11 +75,11 @@ async fn handle_socket(mut socket: TcpStream) -> Result<()> {
 
     let mut f = File::open(&mut path).await;
     
-    let f = match f {
+    let mut _f = match f {
         Ok(file) => file,
-        Err(e) => {
-            start_response(&mut socket, 404);
-            end_headers(&mut socket);
+        Err(_e) => {
+            start_response(&mut socket, 404).await.unwrap();
+            end_headers(&mut socket).await.unwrap();
             return Ok(())
         }
     };
@@ -87,18 +89,16 @@ async fn handle_socket(mut socket: TcpStream) -> Result<()> {
     let mut strlen = format!("{}", len);
     
 
-    start_response(&mut socket, 200);
-    send_header(&mut socket, "Content-Type", get_mime_type(&path));
-    send_header(&mut socket, "Content-Length", &strlen);
-    end_headers(&mut socket);
-    /** 
-    loop:
-    read file into buffer.
-    write buffer into socket.
-    when done:
-    close file, Ok(())
+    start_response(&mut socket, 200).await.unwrap();
+    send_header(&mut socket, "Content-Type", get_mime_type(&path)).await.unwrap();
+    send_header(&mut socket, "Content-Length", &strlen).await.unwrap();
+    end_headers(&mut socket).await.unwrap();
 
-    */
+    while (_f.read(&mut buffer).await.unwrap()) > 0{
+        socket.write(&mut buffer);
+    }
+
+    socket.write(&mut buffer);
  
     
     Ok(())   
