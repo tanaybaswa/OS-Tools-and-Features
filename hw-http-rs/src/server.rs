@@ -93,12 +93,17 @@ async fn handle_socket(mut socket: TcpStream) -> Result<()> {
     send_header(&mut socket, "Content-Type", get_mime_type(&path)).await.unwrap();
     send_header(&mut socket, "Content-Length", &strlen).await.unwrap();
     end_headers(&mut socket).await.unwrap();
+     
 
     while (_f.read(&mut buffer).await.unwrap()) > 0{
         socket.write(&mut buffer).await.unwrap();
     }
 
-    socket.write(&mut buffer);
+    socket.write(&mut buffer).await;
+    
+
+    //_f.read(&mut buffer).await;
+    //socket.write(&mut buffer).await;
  
     
     Ok(())   
