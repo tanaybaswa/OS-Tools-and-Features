@@ -95,7 +95,7 @@ async fn handle_socket(mut socket: TcpStream) -> Result<()> {
     end_headers(&mut socket).await.unwrap();
 
     while (_f.read(&mut buffer).await.unwrap()) > 0{
-        socket.write(&mut buffer);
+        socket.write(&mut buffer).await.unwrap();
     }
 
     socket.write(&mut buffer);
