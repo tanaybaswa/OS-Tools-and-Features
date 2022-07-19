@@ -68,42 +68,105 @@ async fn handle_socket(mut socket: TcpStream) -> Result<()> {
     //get mime type.
     //read file to buffer and write to socket in a loop
     let mut buffer = [0; 1024];
+    let mut case = 0;
 
     let _request = parse_request(&mut socket).await.unwrap();
     let mut path = format!("{}{}", ".", _request.path);
 
+    let metadata = fs::metadata(&path).await;
 
-    let mut f = File::open(&mut path).await;
-    
-    let mut _f = match f {
-        Ok(file) => file,
-        Err(_e) => {
+    let mut meta = match metadata {
+        Ok(meta) => meta,
+        Err(err) => {
             start_response(&mut socket, 404).await.unwrap();
             end_headers(&mut socket).await.unwrap();
             return Ok(())
         }
     };
 
-    let metadata = fs::metadata(&path).await.unwrap();
-    let len =  metadata.len();
-    let mut strlen = format!("{}", len);
-    
-
-    start_response(&mut socket, 200).await.unwrap();
-    send_header(&mut socket, "Content-Type", get_mime_type(&path)).await.unwrap();
-    send_header(&mut socket, "Content-Length", &strlen).await.unwrap();
-    end_headers(&mut socket).await.unwrap();
-     
-
-    while (_f.read(&mut buffer).await.unwrap()) > 0{
-        socket.write(&mut buffer).await.unwrap();
+    if meta.is_dir() {
+        case = 1;
+    } else {
+        case = 0;
     }
 
-    socket.write(&mut buffer).await;
-    
+    if case == 0 {
+        let len =  meta.len();
+        let mut strlen = format!("{}", len);
+        
 
-    //_f.read(&mut buffer).await;
-    //socket.write(&mut buffer).await;
+        let mut f = File::open(&mut path).await;
+        
+        let mut _f = match f {
+            Ok(file) => file,
+            Err(_e) => {
+                start_response(&mut socket, 404).await.unwrap();
+                end_headers(&mut socket).await.unwrap();
+                return Ok(())
+            }
+        };
+        
+
+        start_response(&mut socket, 200).await.unwrap();
+        send_header(&mut socket, "Content-Type", get_mime_type(&path)).await.unwrap();
+        send_header(&mut socket, "Content-Length", &strlen).await.unwrap();
+        end_headers(&mut socket).await.unwrap();
+        
+
+        while (_f.read(&mut buffer).await.unwrap()) > 0{
+            socket.write_all(&mut buffer).await.unwrap();
+        }
+
+        socket.write_all(&mut buffer).await;
+
+    } else {
+        let mut indexpath = format_index(&path);
+        let imetadata = fs::metadata(&indexpath).await;
+
+        let mut imeta = match &imetadata {
+            Ok(meta) => 0,
+            Err(err) => 1
+        };
+
+        if imeta == 0{
+
+            let m = imetadata.unwrap();
+
+            let len =  m.len();
+            let mut strlen = format!("{}", len);
+            
+
+            let mut f = File::open(&mut indexpath).await;
+            
+            let mut _f = match f {
+                Ok(file) => file,
+                Err(_e) => {
+                    start_response(&mut socket, 404).await.unwrap();
+                    end_headers(&mut socket).await.unwrap();
+                    return Ok(())
+                }
+            };
+            
+
+            start_response(&mut socket, 200).await.unwrap();
+            send_header(&mut socket, "Content-Type", get_mime_type(&indexpath)).await.unwrap();
+            send_header(&mut socket, "Content-Length", &strlen).await.unwrap();
+            end_headers(&mut socket).await.unwrap();
+            
+
+            while (_f.read(&mut buffer).await.unwrap()) > 0{
+                socket.write_all(&mut buffer).await.unwrap();
+            }
+
+            socket.write_all(&mut buffer).await;
+
+
+        } else {
+
+        }
+
+
+    }
  
     
     Ok(())   
@@ -111,3 +174,28 @@ async fn handle_socket(mut socket: TcpStream) -> Result<()> {
 
 // You are free (and encouraged) to add other funtions to this file.
 // You can also create your own modules as you see fit.
+
+
+/*
+
+New logic:
+
+parse request.
+get path.
+if path is dir? dir code.
+else? file code. 
+
+dir code:
+
+
+
+
+
+
+
+
+
+
+
+
+*/
