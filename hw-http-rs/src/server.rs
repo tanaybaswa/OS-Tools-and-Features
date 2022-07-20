@@ -14,6 +14,7 @@ use tokio::fs;
 use tokio::io::AsyncWriteExt;
 use tokio::fs::ReadDir;
 use std::ffi::OsString;
+use std::path::Path;
 
 use anyhow::Result;
 
@@ -186,13 +187,24 @@ async fn handle_socket(mut socket: TcpStream) -> Result<()> {
                     Some(entry) => {
 
                         let es = entry.file_name().into_string().unwrap();
-                        let link = format_href(&path, &es);
+                        let fes = format!("/{}", &es);
+                        let link = format_href(&path, &fes);
                         socket.write_all((&link).as_bytes()).await.unwrap();
                     },
                     None => { break }
                 }
             };
-            let link = format_href(&path, "");
+
+            let parent = Path::new(&path).parent();
+
+            let parent = match parent {
+                Some(parent) => parent,
+                None => Path::new("/")
+            };
+
+            let parentpath = parent.to_str().unwrap();
+
+            let link = format_href(&parentpath, "");
             socket.write_all((&link).as_bytes()).await.unwrap();
             
         }
