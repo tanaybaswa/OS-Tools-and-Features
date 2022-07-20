@@ -12,7 +12,8 @@ use tokio::fs::File;
 use tokio::io::{self, AsyncReadExt};
 use tokio::fs;
 use tokio::io::AsyncWriteExt;
-
+use tokio::fs::ReadDir;
+use std::ffi::OsString;
 
 use anyhow::Result;
 
@@ -117,7 +118,7 @@ async fn handle_socket(mut socket: TcpStream) -> Result<()> {
             socket.write_all(&mut buffer).await.unwrap();
         }
 
-        socket.write_all(&mut buffer).await;
+        socket.write_all(&mut buffer).await.unwrap();
 
     } else {
         let mut indexpath = format_index(&path);
@@ -158,11 +159,35 @@ async fn handle_socket(mut socket: TcpStream) -> Result<()> {
                 socket.write_all(&mut buffer).await.unwrap();
             }
 
-            socket.write_all(&mut buffer).await;
+            socket.write_all(&mut buffer).await.unwrap();
 
 
         } else {
+            /*
+            start response with 200.
+            let iter = fs::read_dir(&path)
 
+            
+            */
+
+            start_response(&mut socket, 200).await.unwrap();
+            send_header(&mut socket, "Content-Type", get_mime_type(&path)).await.unwrap();
+            end_headers(&mut socket).await.unwrap();
+
+            let mut iter = tokio::fs::read_dir(&path).await.unwrap();
+
+            loop {
+                match iter.next_entry().await.unwrap() {
+                    Some(entry) => {
+
+                        let es = entry.file_name().into_string().unwrap();
+                        let link = format_href(&path, &es);
+                        socket.write_all((&link).as_bytes()).await.unwrap();
+                    },
+                    None => { break }
+                }
+            };
+            
         }
 
 
