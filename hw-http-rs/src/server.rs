@@ -165,8 +165,8 @@ async fn handle_socket(mut socket: TcpStream) -> Result<()> {
         } else {
             
             start_response(&mut socket, 200).await.unwrap();
-            send_header(&mut socket, "Content-Type", get_mime_type(&path)).await.unwrap();
-            send_header(&mut socket, "Content-Length", "0").await.unwrap();
+            send_header(&mut socket, "Content-Type", "text/plain").await.unwrap();
+            //send_header(&mut socket, "Content-Length", "0").await.unwrap();
             end_headers(&mut socket).await.unwrap();
 
             let mut iter = tokio::fs::read_dir(&path).await.unwrap();
