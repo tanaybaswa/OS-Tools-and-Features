@@ -182,6 +182,8 @@ async fn handle_socket(mut socket: TcpStream) -> Result<()> {
                     None => { break }
                 }
             };
+            let link = format_href(&path, "");
+            socket.write_all((&link).as_bytes()).await.unwrap();
             
         }
 
