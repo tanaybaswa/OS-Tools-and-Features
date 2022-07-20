@@ -71,8 +71,18 @@ async fn handle_socket(mut socket: TcpStream) -> Result<()> {
     let mut buffer = [0; 1024];
     let mut case = 0;
 
-    let _request = parse_request(&mut socket).await.unwrap();
-    let mut path = format!("{}{}", ".", _request.path);
+    let _request = parse_request(&mut socket).await;
+
+    let r = match _request {
+        Ok(request) => request,
+        Err(_e) => {
+            start_response(&mut socket, 404).await.unwrap();
+            end_headers(&mut socket).await.unwrap();
+            return Ok(())
+        }
+    };
+
+    let mut path = format!("{}{}", ".", r.path);
 
     let metadata = fs::metadata(&path).await;
 
@@ -165,7 +175,7 @@ async fn handle_socket(mut socket: TcpStream) -> Result<()> {
         } else {
             
             start_response(&mut socket, 200).await.unwrap();
-            send_header(&mut socket, "Content-Type", "text/plain").await.unwrap();
+            send_header(&mut socket, "Content-Type", "text/html").await.unwrap();
             //send_header(&mut socket, "Content-Length", "0").await.unwrap();
             end_headers(&mut socket).await.unwrap();
 
