@@ -187,8 +187,8 @@ async fn handle_socket(mut socket: TcpStream) -> Result<()> {
                     Some(entry) => {
 
                         let es = entry.file_name().into_string().unwrap();
-                        let fes = format!("/{}", &es);
-                        let link = format_href(&path, &fes);
+                        let fes = format!("{}/{}",&path, &es);
+                        let link = format_href(&fes, &es);
                         socket.write_all((&link).as_bytes()).await.unwrap();
                     },
                     None => { break }
