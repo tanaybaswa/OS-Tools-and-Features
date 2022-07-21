@@ -54,6 +54,8 @@ async fn listen(port: u16) -> Result<()> {
     loop {
         let (socket, _) = listener.accept().await?;
 
+        println!("Here");
+
         tokio::spawn(async move {
             // Process each socket concurrently.
             handle_socket(socket).await
@@ -77,8 +79,8 @@ async fn handle_socket(mut socket: TcpStream) -> Result<()> {
     let r = match _request {
         Ok(request) => request,
         Err(_e) => {
-            start_response(&mut socket, 404).await.unwrap();
-            end_headers(&mut socket).await.unwrap();
+            //start_response(&mut socket, 404).await.unwrap();
+            //end_headers(&mut socket).await.unwrap();
             return Ok(())
         }
     };
