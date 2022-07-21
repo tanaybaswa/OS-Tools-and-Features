@@ -98,7 +98,14 @@ where
 
 pub fn get_mime_type(path: &str) -> &'static str {
 
-    match file_extension(path).unwrap() {
+    let file_ext = file_extension(path);
+
+    let file_ext = match file_ext{
+        Some(fe) => fe,
+        None => "other"
+    };
+
+    match file_ext {
         "html"|"htm" => "text/html",
         "jpg"|"jpeg" => "image/jpeg",
         "png" => "image/png",
