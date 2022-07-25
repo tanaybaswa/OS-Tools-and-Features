@@ -109,7 +109,11 @@ static void* syscall_sbrk(intptr_t increment) {
     if (firstpage == NULL){
       return (void *) -1;
     }
-    pagedir_set_page(t->pagedir, (void *) start, firstpage, true);
+
+    if (!pagedir_set_page(t->pagedir, (void *) start, firstpage, true)){
+      palloc_free_page(firstpage);
+      return (void *) -1;
+    }
   }
 
 
@@ -123,8 +127,13 @@ static void* syscall_sbrk(intptr_t increment) {
 
         //printf("%x  sbreak\n\n", sbreak);
 
-        void* page = pagedir_get_page(t->pagedir, (void *) (sbreak + increment));
-        pagedir_clear_page(t->pagedir, (void *) (sbreak + increment));
+        void* page = pagedir_get_page(t->pagedir, (void *) (next << 12));
+
+        if (!page){
+          return (void *) -1;
+        }
+
+        pagedir_clear_page(t->pagedir, (void *) (next << 12));
         palloc_free_page(page);
 
       }
@@ -160,7 +169,12 @@ static void* alloc(intptr_t increment) {
     ptalloc = PGSIZE + sbreak;
     first = true;
   } else {
-    ptalloc = (uint32_t) pg_round_up((void *) sbreak);
+    if(pg_ofs((void *) (sbreak)) == 0){
+      ptalloc = PGSIZE + sbreak;
+
+    } else{
+      ptalloc = (uint32_t) pg_round_up((void *) sbreak);
+    }
   }
 
   current = pg_no((void *) sbreak);
@@ -176,13 +190,11 @@ static void* alloc(intptr_t increment) {
     }
     
     if (!pagedir_set_page(t->pagedir, (void *) ptalloc, page, true)){
+      palloc_free_page(page);
       j = i;
       fail = true;
       break;
     }
-    
-
-    //pagedir_set_page(t->pagedir, (void *) ptalloc, page, true);
 
     ptalloc += PGSIZE;
   }

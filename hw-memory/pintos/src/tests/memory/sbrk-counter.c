@@ -1,6 +1,7 @@
 /* Tests asymmetric allocations and deallocations with sbrk. */
 
 #include <string.h>
+#include <stdio.h>
 #include "tests/lib.h"
 #include "tests/main.h"
 
@@ -54,6 +55,7 @@ void test_main(void) {
   for (int i = 0; i != NUM_DELTAS; i++) {
     offset += deltas[i];
     ASSERT(offset >= 0);
+    //msg("%d\n", i);
     test_delta(heap, deltas[i], (size_t)offset);
   }
   msg("Done counting; about to access memory out of bounds");
