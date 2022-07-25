@@ -105,6 +105,7 @@ static void* alloc(intptr_t increment) {
   int j;
   int current;
   int next;
+  /** hello */
 
   if (start == sbreak){
     first = true;
