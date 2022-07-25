@@ -89,6 +89,10 @@ struct thread {
   uint8_t* stack;            /* Saved stack pointer. */
   int priority;              /* Priority. */
   struct list_elem allelem;  /* List element for all threads list. */
+  uint32_t start_of_heap;    /* Start of heap. Page Aligned. */
+  uint32_t segment_break;    /* Segment Break. */
+  uint32_t previous_break;    /* Previous Break. */
+  
 
   /* Shared between thread.c and synch.c. */
   struct list_elem elem; /* List element. */

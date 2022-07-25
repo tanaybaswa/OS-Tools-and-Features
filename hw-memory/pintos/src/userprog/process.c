@@ -269,6 +269,12 @@ bool load(const char* file_name, void (**eip)(void), void** esp) {
           }
           if (!load_segment(file, file_page, (void*)mem_page, read_bytes, zero_bytes, writable))
             goto done;
+
+          //printf("%x  mempage\n\n", mem_page);
+
+          t->start_of_heap = (uint32_t) pg_round_up((void *) mem_page) + PGSIZE; /** Find Start of Heap. */
+          t->segment_break = t->start_of_heap;
+          t->previous_break = t->start_of_heap;
         } else
           goto done;
         break;

@@ -7,8 +7,14 @@
 #include "threads/vaddr.h"
 #include "filesys/filesys.h"
 #include "filesys/file.h"
+#include "threads/palloc.h"
+#include "pagedir.h"
+
 
 static void syscall_handler(struct intr_frame*);
+static void* syscall_sbrk(intptr_t increment);
+static void* alloc(intptr_t increment);
+static void* dealloc(intptr_t increment);
 
 void syscall_init(void) { intr_register_int(0x30, 3, INTR_ON, syscall_handler, "syscall"); }
 
@@ -76,6 +82,138 @@ static void syscall_close(int fd) {
   }
 }
 
+static void* syscall_sbrk(intptr_t increment) {
+  struct thread* t = thread_current();
+
+  uint32_t start = t->start_of_heap;
+  uint32_t sbreak = t->segment_break;
+  bool first = false;
+  int current;
+  int next;
+
+  if (increment == 0){
+    //printf("%x  sbreak\n\n", sbreak);
+    //printf("%x  ptalloc\n\n", ptalloc);
+    return (void *) sbreak;
+  }
+
+  if (start == sbreak){
+    first = true;
+  }
+
+  if (first){
+    void* firstpage = palloc_get_page(PAL_ZERO | PAL_USER);
+    pagedir_set_page(t->pagedir, (void *) sbreak, firstpage, true);
+  }
+
+
+  current = pg_no((void *) sbreak);
+  next = pg_no((void *) (sbreak + increment));
+
+  if (current == next){
+
+    if (increment < 0){
+      if (pg_ofs((void *) (sbreak + increment)) == 0){
+
+        //printf("%x  sbreak\n\n", sbreak);
+
+        void* page = pagedir_get_page(t->pagedir, (void *) (sbreak + increment));
+        pagedir_clear_page(t->pagedir, (void *) (sbreak + increment));
+        palloc_free_page(page);
+
+      }
+    }
+    
+    t->previous_break = sbreak;
+    t->segment_break = sbreak + increment;
+    return (void *) t->previous_break;
+
+  }
+
+  if (next > current){
+    return alloc(increment);
+  }
+
+  return dealloc(increment);
+
+}
+
+static void* alloc(intptr_t increment) {
+  struct thread* t = thread_current();
+
+  uint32_t start = t->start_of_heap;
+  uint32_t sbreak = t->segment_break;
+  uint32_t ptalloc;
+  int current;
+  int next;
+
+  if (start == sbreak){
+    ptalloc = PGSIZE + sbreak;
+  } else {
+    ptalloc = (uint32_t) pg_round_up((void *) sbreak);
+  }
+
+  current = pg_no((void *) sbreak);
+  next = pg_no((void *) (sbreak + increment));
+
+
+  for(int i = 0; i < next - current; i++){
+    void* page = palloc_get_page(PAL_ZERO | PAL_USER);
+    if (page == NULL){
+      return (void *) -1;
+    }
+    if (!pagedir_set_page(t->pagedir, (void *) ptalloc, page, true)){
+      return (void *) -1;
+    }
+    ptalloc += PGSIZE;
+  }
+
+  t->previous_break = sbreak;
+  t->segment_break = sbreak + increment;
+
+  return (void *) t->previous_break;
+}
+
+static void* dealloc(intptr_t increment) {
+  struct thread* t = thread_current();
+
+  uint32_t start = t->start_of_heap;
+  uint32_t sbreak = t->segment_break;
+  uint32_t ptalloc;
+  int current;
+  int next;
+
+ 
+  if (start == sbreak){
+    return (void *) -1;
+  } else {
+    ptalloc = (uint32_t) pg_round_down((void *) sbreak);
+  }
+
+  current = pg_no((void *) sbreak);
+  next = pg_no((void *) (sbreak + increment));
+
+  for(int i = 0; i < current - next; i++){
+    void* page = pagedir_get_page(t->pagedir, (void *) ptalloc);
+    pagedir_clear_page(t->pagedir, (void *) ptalloc);
+    palloc_free_page(page);
+    ptalloc -= PGSIZE;
+  }
+
+  if (pg_ofs((void *) sbreak + increment) == 0){
+    void* page = pagedir_get_page(t->pagedir, (void *) ptalloc);
+    pagedir_clear_page(t->pagedir, (void *) ptalloc);
+    palloc_free_page(page);
+  } 
+
+  t->previous_break = sbreak;
+  t->segment_break = sbreak + increment;
+
+  return (void *) t->previous_break;
+}
+
+
+
 static void syscall_handler(struct intr_frame* f) {
   uint32_t* args = (uint32_t*)f->esp;
   struct thread* t = thread_current();
@@ -109,6 +247,10 @@ static void syscall_handler(struct intr_frame* f) {
     case SYS_CLOSE:
       validate_buffer_in_user_region(&args[1], sizeof(uint32_t));
       syscall_close((int)args[1]);
+      break;
+    
+    case SYS_SBRK:
+      f->eax = (uint32_t) syscall_sbrk((intptr_t)args[1]);
       break;
 
     default:
