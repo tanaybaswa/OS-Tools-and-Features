@@ -102,8 +102,14 @@ static void* syscall_sbrk(intptr_t increment) {
   }
 
   if (first){
+    if (increment < 0){
+      return (void *) -1;
+    }
     void* firstpage = palloc_get_page(PAL_ZERO | PAL_USER);
-    pagedir_set_page(t->pagedir, (void *) sbreak, firstpage, true);
+    if (firstpage == NULL){
+      return (void *) -1;
+    }
+    pagedir_set_page(t->pagedir, (void *) start, firstpage, true);
   }
 
 
@@ -143,12 +149,16 @@ static void* alloc(intptr_t increment) {
 
   uint32_t start = t->start_of_heap;
   uint32_t sbreak = t->segment_break;
+  bool first = false;
+  bool fail = false;
   uint32_t ptalloc;
+  int j;
   int current;
   int next;
 
   if (start == sbreak){
     ptalloc = PGSIZE + sbreak;
+    first = true;
   } else {
     ptalloc = (uint32_t) pg_round_up((void *) sbreak);
   }
@@ -160,13 +170,42 @@ static void* alloc(intptr_t increment) {
   for(int i = 0; i < next - current; i++){
     void* page = palloc_get_page(PAL_ZERO | PAL_USER);
     if (page == NULL){
-      return (void *) -1;
+      j = i;
+      fail = true;
+      break;
     }
+    
     if (!pagedir_set_page(t->pagedir, (void *) ptalloc, page, true)){
-      return (void *) -1;
+      j = i;
+      fail = true;
+      break;
     }
+    
+
+    //pagedir_set_page(t->pagedir, (void *) ptalloc, page, true);
+
     ptalloc += PGSIZE;
   }
+
+  if (fail){
+    if (first){
+      void* page = pagedir_get_page(t->pagedir, (void *) start);
+      pagedir_clear_page(t->pagedir, (void *) start);
+      palloc_free_page(page);
+    }
+
+    ptalloc -= PGSIZE;
+
+    for (int k = 0; k < j; k++){
+      void* page = pagedir_get_page(t->pagedir, (void *) ptalloc);
+      pagedir_clear_page(t->pagedir, (void *) ptalloc);
+      palloc_free_page(page);
+      ptalloc -= PGSIZE;
+    }
+
+    return (void *) -1;
+  }
+
 
   t->previous_break = sbreak;
   t->segment_break = sbreak + increment;
@@ -184,7 +223,7 @@ static void* dealloc(intptr_t increment) {
   int next;
 
  
-  if (start == sbreak){
+  if (start == sbreak || sbreak + increment < start){
     return (void *) -1;
   } else {
     ptalloc = (uint32_t) pg_round_down((void *) sbreak);
