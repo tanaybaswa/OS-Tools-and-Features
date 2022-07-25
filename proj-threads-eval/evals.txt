@@ -1,1 +1,4 @@
 Name|Autograder ID (XXX)|Score|Comment
+Jaeden Quintana|12|20|worked on strict priority scheduling design and code. came up with the idea of using a sorted list to keep track of all priorities. organized zoom meetings. was responsive on the group text. debugged various test cases. wrote his section in the report. 
+Lisa Ye|106|20|worked on efficient alarm clock design and code. attended zoom meetings. was responsive on the group text. debugged various test cases. wrote her section in the report. 
+Ashley Park|20|20|worked on efficient alarm clock design and concept checking and testing for the report. attended zoom meetings. was responsive on the group text. debugged various test cases. wrote her section in the report, and the testing section. 
