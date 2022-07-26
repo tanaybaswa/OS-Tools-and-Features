@@ -105,7 +105,6 @@ static void* alloc(intptr_t increment) {
   int j;
   int current;
   int next;
-  /** hello */
 
   if (start == sbreak){
     first = true;
@@ -118,7 +117,6 @@ static void* alloc(intptr_t increment) {
   }
   
   ptalloc = (uint32_t) pg_round_up((void *) sbreak + 1);
-  int alloc_start = ptalloc;
 
 
   current = pg_no((void *) sbreak);
