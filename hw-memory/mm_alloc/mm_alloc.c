@@ -142,6 +142,9 @@ void mm_free(void* ptr) {
   if (p != NULL && p->free == 1){
     p->size = p->size + sizeof(Block) + b->size;
     p->next = b->next;
+    if (b->next != NULL){
+      b->next->prev = p;
+    }
     memset(&p->ptr, 0, p->size);
     b = p;
   }
@@ -151,13 +154,18 @@ void mm_free(void* ptr) {
   if (n != NULL && n->free == 1){
     b->size = b->size + sizeof(Block) + n->size;
     b->next = n->next;
+    if (n->next != NULL){
+      n->next->prev = b;
+    }
     memset(&b->ptr, 0, b->size);
   }
 
   b = base;
 
   while(b != NULL){
-    //printf("%d\n", b->free);
+    printf("%d\n", b->free);
+    printf("%d\n", b->size);
+    //printf("%d\n", sizeof(Block));
     //printf("%d\n", (uint) &b->ptr % 1000000);
     //printf("%d\n", (uint) ((uint) &b->ptr + 99976) % 1000000);
 
