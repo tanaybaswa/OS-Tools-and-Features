@@ -40,11 +40,9 @@ int main() {
   assert(data != NULL);
   data[0] = 0x162;
   d[0] = 99;
-  mm_free(f);
   mm_free(data);
-  mm_free(d);
-  mm_free(e);
-  //int* g = mm_malloc(49976);
+  int* g = mm_malloc(49968);
+  int* h = mm_malloc(49968);
   //mm_free(d);
   puts("malloc test successful!");
 }

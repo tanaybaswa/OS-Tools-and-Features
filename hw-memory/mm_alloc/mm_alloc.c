@@ -10,6 +10,15 @@
 #include <string.h>
 #include <stddef.h>
 
+typedef struct block{
+    size_t size;
+    int free;
+    struct block *next;
+    struct block *prev;
+    char ptr[];
+
+} Block ;
+
 int first = 1;
 Block* base;
 Block* end;
@@ -20,7 +29,7 @@ void* mm_malloc(size_t size) {
   }
 
   if (first == 1){
-    //printf("In first loop\n");
+ 
     first = 0;
 
     
@@ -34,8 +43,6 @@ void* mm_malloc(size_t size) {
     base->size = size;
     end = base;
 
-    //printf("%x\n", base);
-
     return &base->ptr;
 
   }
@@ -46,49 +53,43 @@ void* mm_malloc(size_t size) {
 
     if (b->free == 1){
 
-      //printf("Found free block.\n");
-      
-
-      
-
       if (b->size >= size){
-        //printf("%d\n", b->size - size);
-        memset(&b->ptr, 0, b->size);
-        
 
         if ((b->size - size) >= (sizeof(Block))){
 
-          //printf("Splitting Blocks.\n");
-        
-          Block* new = (Block *) ((uint)&b->ptr + size);
+          Block* new = (Block *) ((void *)&b->ptr + size);
+
           new->free = 1;
+          new->size = b->size - sizeof(Block) - size;
           new->prev = b;
           new->next = b->next;
+          if (b->next != NULL){
+            b->next->prev = new;
+          }
           b->next = new;
-          new->size = b->size - sizeof(Block) - size;
+          if (new->next == NULL){
+            end = new;
+          }
 
           b->size = size;
           b->free = 0;
+
 
           return &b->ptr;
 
         } else {
 
           b->free = 0;
+          //b->size = size;
 
           return &b->ptr;
           
-
         }
-
       }
-      
     }
-
     b = b->next;
   }
 
-  //printf("Creating new block.\n");
 
   Block* new = (Block *) sbrk(size + sizeof(Block));
   if (new == -1){
@@ -101,16 +102,6 @@ void* mm_malloc(size_t size) {
   new->size = size;
 
   end = new;
-
-  b = base;
-
-  while(b != NULL){
-    //printf("%d\n", (uint) b % 1000000);
-    //printf("%d\n", (uint) b->size % 1000000);
-    //printf("%d\n", (uint) ((uint) &b->ptr + 99976) % 1000000);
-
-    b = b->next;
-  }
 
   return &new->ptr;
 }
@@ -130,8 +121,6 @@ void mm_free(void* ptr) {
   }
 
   Block* b = (Block *) (ptr - offsetof(Block, ptr));
-
-  //printf("%d\n", (uint)b % 1000000);
 
   b->free = 1;
 
@@ -157,19 +146,10 @@ void mm_free(void* ptr) {
     if (n->next != NULL){
       n->next->prev = b;
     }
+
+    if (n->next == NULL){
+      end = b;
+    }
     memset(&b->ptr, 0, b->size);
   }
-
-  b = base;
-
-  while(b != NULL){
-    //printf("%d\n", b->free);
-    //printf("%d\n", b->size);
-    //printf("%d\n", sizeof(Block));
-    //printf("%d\n", (uint) &b->ptr % 1000000);
-    //printf("%d\n", (uint) ((uint) &b->ptr + 99976) % 1000000);
-
-    b = b->next;
-  }
-
 }
