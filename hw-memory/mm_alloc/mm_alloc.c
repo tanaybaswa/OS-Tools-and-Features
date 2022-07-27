@@ -25,6 +25,9 @@ void* mm_malloc(size_t size) {
 
     
     base = (Block *) sbrk(size + sizeof(Block));
+    if (base == -1){
+      return NULL;
+    }
     base->free = 0;
     base->prev = NULL;
     base->next = NULL;
@@ -46,7 +49,7 @@ void* mm_malloc(size_t size) {
       if (b->size >= size){
         memset(&b->ptr, 0, b->size);
 
-        if (b->size - size >= sizeof(Block) + sizeof(int)){
+        if (b->size - size >= sizeof(Block)){
 
           Block* new = (Block *) &b->ptr + size;
           new->free = 1;
@@ -74,6 +77,9 @@ void* mm_malloc(size_t size) {
   }
 
   Block* new = (Block *) sbrk(size + sizeof(Block));
+  if (new == -1){
+    return NULL;
+  }
   new->free = 0;
   new->prev = end;
   end->next = new;
@@ -89,7 +95,7 @@ void* mm_realloc(void* ptr, size_t size) {
   //printf("%x\n", b);
   //TODO: Implement realloc
 
-  
+
 
   return NULL;
 }
