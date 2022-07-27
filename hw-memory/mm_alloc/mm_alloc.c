@@ -8,27 +8,19 @@
 #include <unistd.h>
 #include <stdio.h>
 #include <string.h>
-#include <stddef.h>
-
 
 void* mm_malloc(size_t size) {
+  //TODO: Implement malloc
+
   return NULL;
 }
 
 void* mm_realloc(void* ptr, size_t size) {
-  
-  if (ptr == NULL){
-    return mm_malloc(size);
-  }
-
-  if (size == 0){
-    mm_free(ptr);
-    return NULL;
-  }
+  //TODO: Implement realloc
 
   return NULL;
 }
 
 void mm_free(void* ptr) {
-  return;
+  //TODO: Implement free
 }
