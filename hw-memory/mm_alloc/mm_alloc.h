@@ -15,13 +15,5 @@ void* mm_malloc(size_t size);
 void* mm_realloc(void* ptr, size_t size);
 void mm_free(void* ptr);
 
-typedef struct block{
-    size_t size;
-    int free;
-    struct block *next;
-    struct block *prev;
-    char ptr[];
-
-} Block ;
 
 #endif
