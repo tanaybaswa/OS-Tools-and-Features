@@ -163,8 +163,8 @@ void mm_free(void* ptr) {
   b = base;
 
   while(b != NULL){
-    printf("%d\n", b->free);
-    printf("%d\n", b->size);
+    //printf("%d\n", b->free);
+    //printf("%d\n", b->size);
     //printf("%d\n", sizeof(Block));
     //printf("%d\n", (uint) &b->ptr % 1000000);
     //printf("%d\n", (uint) ((uint) &b->ptr + 99976) % 1000000);
