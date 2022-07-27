@@ -15,12 +15,12 @@ Block* base;
 Block* end;
 
 void* mm_malloc(size_t size) {
-
   if (size == 0){
     return NULL;
   }
 
-  if (first){
+  if (first == 1){
+    //printf("In first loop\n");
     first = 0;
 
     
@@ -44,14 +44,23 @@ void* mm_malloc(size_t size) {
 
   while(b != NULL){
 
-    if (b->free){
+    if (b->free == 1){
+
+      //printf("Found free block.\n");
+      
+
+      
 
       if (b->size >= size){
+        //printf("%d\n", b->size - size);
         memset(&b->ptr, 0, b->size);
+        
 
-        if (b->size - size >= sizeof(Block)){
+        if ((b->size - size) >= (sizeof(Block))){
 
-          Block* new = (Block *) &b->ptr + size;
+          //printf("Splitting Blocks.\n");
+        
+          Block* new = (Block *) ((uint)&b->ptr + size);
           new->free = 1;
           new->prev = b;
           new->next = b->next;
@@ -68,13 +77,18 @@ void* mm_malloc(size_t size) {
           b->free = 0;
 
           return &b->ptr;
+          
 
         }
+
       }
+      
     }
 
     b = b->next;
   }
+
+  //printf("Creating new block.\n");
 
   Block* new = (Block *) sbrk(size + sizeof(Block));
   if (new == -1){
@@ -87,6 +101,16 @@ void* mm_malloc(size_t size) {
   new->size = size;
 
   end = new;
+
+  b = base;
+
+  while(b != NULL){
+    //printf("%d\n", (uint) b % 1000000);
+    //printf("%d\n", (uint) b->size % 1000000);
+    //printf("%d\n", (uint) ((uint) &b->ptr + 99976) % 1000000);
+
+    b = b->next;
+  }
 
   return &new->ptr;
 }
@@ -107,7 +131,7 @@ void mm_free(void* ptr) {
 
   Block* b = (Block *) (ptr - offsetof(Block, ptr));
 
-  //printf("%x\n", b);
+  //printf("%d\n", (uint)b % 1000000);
 
   b->free = 1;
 
@@ -128,6 +152,16 @@ void mm_free(void* ptr) {
     b->size = b->size + sizeof(Block) + n->size;
     b->next = n->next;
     memset(&b->ptr, 0, b->size);
+  }
+
+  b = base;
+
+  while(b != NULL){
+    //printf("%d\n", b->free);
+    //printf("%d\n", (uint) &b->ptr % 1000000);
+    //printf("%d\n", (uint) ((uint) &b->ptr + 99976) % 1000000);
+
+    b = b->next;
   }
 
 }
