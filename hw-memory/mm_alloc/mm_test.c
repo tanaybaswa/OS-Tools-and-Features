@@ -44,8 +44,6 @@ int main() {
   mm_free(data);
   mm_free(d);
   mm_free(e);
- 
-
   //int* g = mm_malloc(49976);
   //mm_free(d);
   puts("malloc test successful!");
