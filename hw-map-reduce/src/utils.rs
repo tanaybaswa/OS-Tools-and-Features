@@ -41,7 +41,7 @@ pub async fn start_cluster(n_workers: u32) {
     });
 
     // Give time for the coordinator to start up
-    tokio::time::sleep(Duration::from_secs(COORDINATOR_STARTUP_MS)).await;
+    tokio::time::sleep(Duration::from_millis(COORDINATOR_STARTUP_MS)).await;
 
     for _ in 0..n_workers {
         tokio::spawn(async {
